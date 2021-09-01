@@ -8,34 +8,57 @@ def SockConnect(host="whois.ripe.net", port=43, timeout=None):
 	current_socket.settimeout(timeout)  # Setting timeout given in arguments
 	return current_socket
 
+
 def SockSendRecv(sock, request, source="-s RIPE"):
 	"""This function sends a request using given socket and returns the response received from the server"""
 	sock.send(f"{source} {request}\n".encode())  # Encoding the request command to the bytes and sending it using socket
-	all_data = b""
+	all_data = "".encode()
 
 	# Receiving the response from the server
 	while True:
-		data = sock.recv(1024)
+		data = sock.recv(4096)
 		if len(data) < 1:
 			break
 		all_data += data
-	return all_data.decode()
 
-my_socket = SockConnect(timeout=10)
-datas = SockSendRecv(my_socket, "google.com")
-watemark = re.findall("This query was served by the .+", datas)
-data_source = re.findall("No entries found in source ([A-Z-]+)", datas)
-data_key = re.findall("([a-z-]+):  +", datas)
-data_value = re.findall("[a-z-]+:  +(.+)\n", datas)
-data_dict = {data_key[i]:data_value[i] for i in range(len(data_key))}
+	my_socket.close()
+	
+	all_data = all_data.decode("utf-8", "ignore")
+	data_keys = re.findall("([a-z-]+):  +", all_data)
 
-if not data_dict:
-	print(watemark[0])
-	print("\nThere is no data in source", data_source[0])
+	if not data_keys:
+		return None
 
-else:
-	print(watemark[0], "\n")
-	print(data_dict)
+	return all_data
 
 
-my_socket.close()
+print("Prophinder 1.0 - Created by AyuB_Ismailoff\n\n"
+	"Enter a hostname or IP address that you want, we will find all information about it from RIPE database.\n"
+	"Usage:\n-w   --Write data to a text file\n-q   --Quit\n"
+	"example: -w google")
+
+
+while True:
+	request = input("").lower().split()
+	if request[0] in ["-q", "-Q"]:
+		break
+	elif len(request) == 2: 
+		parameter = request[0]
+		hostname = request[1]
+		if parameter == "-w":
+			my_socket = SockConnect(timeout=10)
+			response = SockSendRecv(my_socket, hostname)
+			print(response)
+			file_name = f"Prophinder_{hostname}_RIPE.txt"
+			fhandle = open(file_name, "w")
+			fhandle.write(response)
+			continue
+
+	elif len(request) == 1:
+		my_socket = SockConnect(timeout=10)
+		response = SockSendRecv(my_socket, request[0])
+		print(response)
+		continue
+	
+	else:
+		print("Invalid input!")
